@@ -1,0 +1,87 @@
+version: "3.7"
+
+services:
+
+  ######################################################################################################################
+  ### SETUP PHP CONTAINER
+  ######################################################################################################################
+  php:
+    container_name: ${PROJECT_NAMESPACE}_php
+    hostname:       ${PROJECT_NAMESPACE}_php
+    build:
+      context: .
+      dockerfile: .docker/php/Dockerfile
+      args:
+        - PHP_VERSION=${PHP_VERSION}
+    ports:
+      - "9000:9000"
+    networks:
+      - application-network
+    volumes:
+      - ./source_code:${PROJECT_ROOT}
+    links:
+      - mysql
+    restart: unless-stopped
+  ######################################################################################################################
+  ### SETUP NGINX CONTAINER
+  ######################################################################################################################
+  nginx:
+    container_name: ${PROJECT_NAMESPACE}_nginx
+    hostname:       ${PROJECT_NAMESPACE}_nginx
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+    environment:
+      - NGINX_PORT=${NGINX_PORT}
+      - PHP_HOST=${PHP_HOST}
+      - PHP_PORT=${PHP_PORT}
+      - PROJECT_DOMAIN=${PROJECT_DOMAIN}
+      - PROJECT_URL=${PROJECT_URL}
+      - PROJECT_ROOT=${PROJECT_ROOT}
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - application-network
+    volumes:
+      - ./source_code:${PROJECT_ROOT}
+    restart: unless-stopped
+    depends_on:
+      - php
+      - mysql
+    links:
+      - php
+      - mysql
+  ######################################################################################################################
+  ### SETUP MYSQL CONTAINER
+  ######################################################################################################################
+  mysql:
+    container_name: ${PROJECT_NAMESPACE}_database
+    hostname:       ${PROJECT_NAMESPACE}_database
+    build:
+      context: .
+      dockerfile: .docker/mysql/Dockerfile
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER_NAME}
+      - MYSQL_PASSWORD=${MYSQL_USER_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    networks:
+      - application-network
+    volumes:
+      - db-data:/var/lib/mysql
+    restart: unless-stopped
+    ####################################################################################################################
+
+########################################################################################################################
+### SETUP CONTAINER NETWORK
+########################################################################################################################
+networks:
+  application-network:
+    driver: bridge
+########################################################################################################################
+### SETUP CONTAINER Volumes
+########################################################################################################################
+volumes:
+  db-data:
+    driver: "local"
